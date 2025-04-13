@@ -1,0 +1,124 @@
+You're an expert in Babylon.js, the JavaScript WebGL 3D engine. 
+
+rules:
+- assume there is already an existing Babylon.js scene, engine and camera so you don't have to create them 
+- assume there is already a ground created to welcome the meshes and a light, you don’t need to create one
+- place the models inside those square coordinates -50 by 50
+- place the gate at the center
+- place at least 15 trees on the floor, Y=0
+- place at least 50 dinosaurs on the floor
+- don’t generate any fog
+- just generate the JavaScript code to add into an existing program.
+- use the scene and engine objects directly
+- look at the below list of models, use a much models as possible and their JSON characteristics to build the scene accordingly
+- if it can move, animated its position on screen, otherwise just load it somewhere on a fix position
+- if it can fly, animated its position in the air, not higher than Y=8
+- if the size property is different from 1, use it to scale the model with the value provided
+- IMPORTANT! play in loop the musical sequence received using Web Audio and associate dynamic elements with it
+- use the notes to change the color of an animated spotlight
+- be creative using basic primitives to generate some background, vegetation, rocks
+
+Follow the action movie principles with slow animations. Use the colors, with high contrast and picture style of the movie. The dinosaures that are allowed to move must move in a loop on a specific path you will decide.
+
+List of models:
+{
+    "dinosaurs": {
+        "predators": [
+            {
+                "name": "Tyrannosaurus Rex",
+                "url": "https://david.blob.core.windows.net/tests/001_animated_t-rex.glb",
+                "description": "It is one of the most well-known and aggressive predators.",
+                "canMove": true,
+                "size": 1
+            },
+            {
+                "name": "Velociraptor",
+                "url": "https://david.blob.core.windows.net/tests/006_raptor_blue.glb",
+                "description": "It is a small and fast predator.",
+                "canMove": false,
+                "size": 1
+            },
+            {
+                "name": "Velociraptor animated",
+                "url": "https://david.blob.core.windows.net/tests/007_animatedvelociraptor.glb",
+                "description": "It is a small and fast predator.",
+                "canMove": false,
+                "size": 10
+            },
+            {
+                "name": "Pteradactyl",
+                "url": "https://david.blob.core.windows.net/tests/003_animated_flying_pteradactal_dinosaur.glb",
+                "description": "It is a flying predator.",
+                "canMove": true,
+                "canFly": true,
+                "size": 1
+            },
+            {
+                "name": "Pteranodon",
+                "url": "https://david.blob.core.windows.net/tests/008_flyingpteranodon.glb",
+                "description": "It is another flying predator.",
+                "canMove": true,
+                "canFly": true,
+                "size": 1
+            },
+            {
+                "name": "quetzalcoatlus",
+                "url": "https://david.blob.core.windows.net/tests/010_flying_quetzalcoatlus.glb",
+                "description": "It is another flying predator.",
+                "canMove": true,
+                "canFly": true,
+                "size": 0.75
+            }
+        ],
+        "preys": [
+            {
+                "name": "Diplodocus",
+                "url": "https://david.blob.core.windows.net/tests/004_mamen_river_dragon.glb",
+                "description": "It is a herbivore dinosaur.",
+                "canMove": false,
+                "size": 1
+            },
+            {
+                "name": "protoceratops",
+                "url": "https://david.blob.core.windows.net/tests/005_protoceratops.glb",
+                "description": "It is a herbivore dinosaur.",
+                "canMove": false,
+                "size": 0.5
+            },
+            {
+                "name": "Triceratops",
+                "url": "https://david.blob.core.windows.net/tests/009_triceratop.glb",
+                "description": "It is a herbivore dinosaur.",
+                "canMove": false,
+                "size": 0.75
+            },
+            {
+                "name": "Ankylosaurus",
+                "url": "https://david.blob.core.windows.net/tests/011_ankylosaur.glb",
+                "description": "It is a herbivore dinosaur.",
+                "canMove": false,
+                "size": 5
+            }
+        ]
+    },
+    "gate": {
+        "url": "https://david.blob.core.windows.net/tests/012_jurassic_park_gate.glb",
+        "description": "The famous Jurassic Park gate.",
+        "canMove": false,
+        "size": 0.01
+    },
+    "trees": [
+        {
+            "url": "https://david.blob.core.windows.net/tests/013_acacia_tree.glb",
+            "description": "A tree model medium height.",
+            "canMove": false,
+            "size": 1
+        },
+        {
+            "url": "https://david.blob.core.windows.net/tests/014_realistic_tree.glb",
+            "description": "Another tree model for the dinosaurs, higher than the previous one.",
+            "canMove": false,
+            "size": 1
+        }
+    ]
+}

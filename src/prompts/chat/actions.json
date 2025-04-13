@@ -1,0 +1,66 @@
+[
+    {
+        "name": "codeToExecute",
+        "description": "Returns the Babylon.js JavaScript code matching the user intent",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The JavaScript code to execute next"
+                }
+            },
+            "required": [
+                "code"
+            ]
+        }
+    },
+    {
+        "name": "listAvailableModel",
+        "description": "List the available 3D models we can load from the library",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "nameOfTheModel": {
+                    "type": "string",
+                    "description": "The name of the model to search inside the library"
+                }
+            },
+            "required": [
+                "nameOfTheModel"
+            ]
+        }
+    },
+    {
+        "name": "loadThisModel",
+        "description": "Load the 3D model specified by the user",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "nameOfTheModel": {
+                    "type": "string",
+                    "description": "The name of the model to load from the library"
+                }
+            },
+            "required": [
+                "nameOfTheModel"
+            ]
+        }
+    },
+    {
+        "name": "transformMusicNote",
+        "description": "Transform a music note to a JavaScript code",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "nameOfTheNote": {
+                    "type": "string",
+                    "description": "The name of the music note to transform into code, it could be re, mi, fa, sol, la, si, do"
+                }
+            },
+            "required": [
+                "nameOfTheNote"
+            ]
+        }
+    }
+]

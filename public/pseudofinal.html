@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>J.A.R.V.I.B Debug page</title>
+
+    <style>
+        html,
+        body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        /* Added styles for the text zone */
+        #textZone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            max-height: 90%;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            overflow-y: auto;
+            padding: 10px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        #textContent {
+            max-height: calc(100% - 30px);
+            overflow-y: auto;
+        }
+
+        #closeButton {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        #closeButton:hover {
+            background-color: darkred;
+        }
+    </style>
+    <script src="https://assets.babylonjs.com/generated/Assets.js"></script>
+    <script src="https://cdn.babylonjs.com/recast.js"></script>
+    <script src="https://cdn.babylonjs.com/ammo.js"></script>
+    <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
+    <script src="https://cdn.babylonjs.com/cannon.js"></script>
+    <script src="https://cdn.babylonjs.com/Oimo.js"></script>
+    <script src="https://cdn.babylonjs.com/earcut.min.js"></script>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdn.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+    <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+    <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+</head>
+
+<body>
+    <!-- Added text zone -->
+    <div id="textZone">
+        <button id="closeButton">X</button>
+        <div id="textContent"></div>
+    </div>
+    <button id="showButton" style="position: absolute; bottom: 10px; right: 10px; z-index: 10;">Show code</button>
+    <canvas id="renderCanvas"></canvas>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        function unlockWebAudio(audioContext) {
+            const unlock = () => {
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        console.log('Web Audio API unlocked');
+                    }).catch((err) => {
+                        console.error('Failed to unlock Web Audio API:', err);
+                    });
+                }
+
+                // Remove the event listeners after unlocking
+                document.removeEventListener('click', unlock);
+                document.removeEventListener('keydown', unlock);
+            };
+
+            // Add event listeners for user interaction
+            document.addEventListener('click', unlock);
+            document.addEventListener('keydown', unlock);
+        }
+
+        // Example usage
+        const localAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        unlockWebAudio(localAudioContext);
+
+        var __EVAL = s => eval(`void (__EVAL = ${__EVAL.toString()}); ${s}`);
+
+        function evaluate(expr) {
+            try {
+                const result = __EVAL(expr);
+                console.log(expr, '===>', result)
+            } catch (err) {
+                console.log(expr, 'ERROR:', err.message)
+            }
+        }
+
+        var socket = io();
+        var scene;
+        var camera;
+        var light;
+        var trexindice = 0;
+        var stopListening = false;
+
+        const canvas = document.getElementById("renderCanvas"); // Get the canvas element
+        var engine = new BABYLON.Engine(canvas, true); // Generate the BABYLON 3D engine
+        engine.hideLoadingUI();
+
+        const createScene = function () {
+            // Creates a basic Babylon Scene object
+            scene = new BABYLON.Scene(engine);
+
+            // Create a default skybox with an environment.
+            var hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.dds", scene);
+            var currentSkybox = scene.createDefaultSkybox(hdrTexture, true);
+
+            camera = new window.BABYLON.ArcRotateCamera(
+                "camera",
+                -Math.PI / 2,
+                Math.PI / 2.5,
+                30,
+                new window.BABYLON.Vector3(0, 0, 0)
+            );
+            // Targets the camera to scene origin
+            camera.setTarget(BABYLON.Vector3.Zero());
+            // This attaches the camera to the canvas
+            camera.attachControl(canvas, true);
+            // Creates a light, aiming 0,1,0 - to the sky
+            light = new BABYLON.HemisphericLight("light",
+                new BABYLON.Vector3(0, 1, 0), scene);
+            // Dim the light a small amount - 0 to 1
+            light.intensity = 0.8;
+
+            socket.on('execute pseudo final code', function (msg) {
+                if (stopListening) {
+                    return; // Ignore incoming messages if stopListening is true
+                }
+                //console.log(msg);
+                evaluate(msg);
+                stopListening = true;
+            });
+
+            socket.on('AI Answer', function (msg) {
+                addText(msg);
+            });
+
+            return scene;
+        };
+
+        // Function to add text to the text zone
+        function addText(message) {
+            const AIAnswer = document.getElementById("textContent");
+            // const paragraph = document.createElement("p");
+            // paragraph.textContent = message;
+            AIAnswer.innerHTML += message;
+            AIAnswer.scrollTop = AIAnswer.scrollHeight; // Autoscroll to the bottom
+        }
+
+        // Close button functionality
+        document.getElementById("closeButton").addEventListener("click", () => {
+            document.getElementById("textZone").style.display = "none";
+        });
+
+        // Show button functionality
+        document.getElementById("showButton").addEventListener("click", () => {
+            document.getElementById("textZone").style.display = "block";
+        });
+
+        var scene = createScene(); //Call the createScene function
+        // Register a render loop to repeatedly render the scene
+        engine.runRenderLoop(function () {
+            scene.render();
+        });
+        // Watch for browser/canvas resize events
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+
+</html>

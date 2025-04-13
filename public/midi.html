@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>AI4Fun - MIDI controller</title>
+    <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+  </head>
+  
+  <body>
+    <h1>AI4Fun - MIDI controller</h1>
+    <button id="toggleButton" onclick="toggleEmit()">Enable Emit</button>
+    <label>
+      <input type="checkbox" id="challengeModeCheckbox"> Challenge Mode
+    </label>
+    <label>
+      <input type="checkbox" id="pseudoFinalCheckbox"> Pseudo Final
+    </label>
+    <label>
+      <input type="checkbox" id="finalCheckbox"> Final
+    </label>
+    <button id="sendSequence" onclick="sendSequence()">Send sequence!</button>
+    <label>
+      <input type="checkbox" id="stopListening"> Stop Listening
+    </label>
+    <div id="progressContainer">
+      <h2>Challenge Progress</h2>
+      <div id="progressBar" style="width: 100%; background-color: #ddd;">
+        <div id="progress" style="width: 0%; height: 30px; background-color: #4caf50;"></div>
+      </div>
+    </div>
+    <div id="logNotes"></div>
+  </body>
+  <script>
+    const targetSequence = ['A#','A','A#','A#','A','A#','A#','A','A#','C','C','D#','D#','D','A#','C','A','F','D','A#','C','F'];
+    const targetFire = ['A#','C','D','D#','F','G','A'];
+    let noteStream = [];
+    let targetIndex = 0;
+    let emitEnabled = false;
+    let logNotes = document.getElementById('logNotes');
+    let currentMode = "normal";
+    let socket = io();
+
+    // Enable WEBMIDI.js and trigger the onEnabled() function when ready
+    WebMidi
+      .enable()
+      .then(onEnabled)
+      .catch(err => alert(err));
+  
+    // Function triggered when WEBMIDI.js is ready
+    function onEnabled() {
+  
+      // Display available MIDI input devices
+      if (WebMidi.inputs.length < 1) {
+        logNotes.innerHTML += "No device detected.";
+      } else {
+        WebMidi.inputs.forEach((device, index) => {
+          logNotes.innerHTML+= `${index}: ${device.name} <br>`;
+        });
+      }
+      const mySynth = WebMidi.inputs[0];
+
+      let firstSequenceDone = false;
+        
+      mySynth.channels[1].addListener("noteon", e => {
+        if (document.getElementById('stopListening').checked) {
+          return; // Stop listening if the checkbox is checked
+        }
+
+        let fullNoteName = e.note.name;
+        if (e.note.accidental) {
+          fullNoteName += e.note.accidental;
+        }
+        logNotes.innerHTML+= `${fullNoteName} -- `;
+
+        noteStream.push(fullNoteName);
+
+        switch (currentMode) {
+          case "challenge":
+            manageChallengeMode()
+            break;
+          case "normal":
+            noteStream = []; // Reset the note stream
+            targetIndex = 0; // Reset the target index
+            if (emitEnabled) {
+              socket.emit('midi', fullNoteName);
+            }
+            break;
+        }
+
+        function manageChallengeMode() {
+          if (!firstSequenceDone && checkSequencePlayed(noteStream, targetSequence)) {
+            firstSequenceDone = true;
+            socket.emit('midi', "jurassic");     
+            logNotes.innerHTML+= `First sequence completed!<br>`;
+            noteStream = []; // Reset the note stream
+            targetIndex = 0; // Reset the target index
+            updateProgressBar(firstSequenceDone); // Reset the progress bar    
+          } else {
+            updateProgressBar(firstSequenceDone); // Update the progress bar
+          }
+
+          if (firstSequenceDone) {
+            if (checkSequencePlayed(noteStream, targetFire)) {
+              logNotes.innerHTML+= `Second sequence completed!<br>`;
+              targetIndex = 0; // Reset the target index
+              noteStream = []; // Reset the note stream
+              updateProgressBar(firstSequenceDone);
+              socket.emit('midi', "firework");
+              firstSequenceDone = false;
+              challengeModeCheckbox.checked = false;
+              currentMode = "normal";
+            }
+          }
+        }
+      });
+    }
+
+    function sendSequence() {
+      switch (currentMode) {
+        case "pseudofinal":
+          socket.emit('pseudofinal', noteStream);
+          break;
+        case "final":
+          socket.emit('final', noteStream);
+          break;
+      }
+    }
+
+    function toggleEmit() {
+      emitEnabled = !emitEnabled;
+      document.getElementById('toggleButton').innerText = emitEnabled ? 'Disable Emit' : 'Enable Emit';
+    }
+
+    function checkSequencePlayed(noteStream, targetSequence) {
+        for (const note of noteStream) {
+            if (note === targetSequence[targetIndex]) {
+                targetIndex++;
+                console.log(targetIndex);
+                if (targetIndex === targetSequence.length) {
+                    return true; // The sequence has been fully matched
+                }
+                else {
+                  return false;
+                } 
+            }
+        }
+        return false; // The sequence was not found in order
+    }
+
+    function updateProgressBar(firstSequenceDone) {
+      let progress = document.getElementById('progress');
+      let length = targetSequence.length;
+      if (firstSequenceDone) length = targetFire.length; 
+      let progressPercentage = (targetIndex / length) * 100;
+      progress.style.width = `${progressPercentage}%`;
+    }
+
+    const challengeModeCheckbox = document.getElementById('challengeModeCheckbox')
+
+    challengeModeCheckbox.addEventListener('change', (event) => {
+      if (event.currentTarget.checked) {
+        pseudoFinalCheckbox.checked = false;
+        finalCheckbox.checked = false;
+        currentMode = "challenge";
+      }
+      else {
+        if (!pseudoFinalCheckbox.checked && !finalCheckbox.checked) {
+          currentMode = "normal";
+        }
+      } 
+    });
+
+    const pseudoFinalCheckbox = document.getElementById('pseudoFinalCheckbox')
+
+    pseudoFinalCheckbox.addEventListener('change', (event) => {
+      if (event.currentTarget.checked) {
+        challengeModeCheckbox.checked = false;
+        finalCheckbox.checked = false;
+        currentMode = "pseudofinal";
+      }
+      else {
+        if (!challengeModeCheckbox.checked && !finalCheckbox.checked) {
+          currentMode = "normal";
+        }
+      } 
+    });
+
+    const finalCheckbox = document.getElementById('finalCheckbox')
+
+    finalCheckbox.addEventListener('change', (event) => {
+      if (event.currentTarget.checked) {
+        challengeModeCheckbox.checked = false;
+        pseudoFinalCheckbox.checked = false;
+        currentMode = "final";
+      }
+      else {
+        if (!pseudoFinalCheckbox.checked && !challengeModeCheckbox.checked) {
+          currentMode = "normal";
+        }
+      } 
+    });
+  </script>
+</html>
