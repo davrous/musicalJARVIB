@@ -20,7 +20,7 @@ Musical JARVIB (Just A Rather Very Intelligent Bot) is your personnal Copilot to
 
 ## View it in action
 
-[![Image alt text](https://img.youtube.com/vi/181D9lk7DRc/hqdefault.jpg)](https://www.youtube.com/watch?v=181D9lk7DRc)
+[![Image alt text](https://img.youtube.com/vi/E3vmDroIqj4/hqdefault.jpg)](https://www.youtube.com/watch?v=E3vmDroIqj4)
 
 JARVIB is using the Teams AI library to map users' intent to 3 different type of actions:
 
