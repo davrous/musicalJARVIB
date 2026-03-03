@@ -15,10 +15,12 @@ async function start() {
     // Check for page to display
     let view = searchParams.get("view") || "stage";
 
-    // Check if we are running on stage.
-    if (searchParams.get("inTeams")) {
+    // Check if we are running inside Teams.
+    if (searchParams.get("inTeams") && typeof microsoftTeams !== "undefined") {
         // Initialize teams app
         await microsoftTeams.app.initialize();
+        // Notify Teams that the app loaded successfully
+        microsoftTeams.app.notifySuccess();
 
         // Get our frameContext from context of our app in Teams
         const context = await microsoftTeams.app.getContext();
@@ -36,11 +38,11 @@ async function start() {
 
     // Load the requested view
     switch (view) {
+        case "config":
+            renderConfig(root);
+            break;
         case "content":
             renderSideBar(root);
-            break;
-        case "config":
-            renderSettings(root);
             break;
         case "stage":
         default:
@@ -138,6 +140,39 @@ function renderStage(elem) {
     });
 }
 
+// CONFIG VIEW
+function renderConfig(elem) {
+    const configTemplate = document.createElement("template");
+    configTemplate["innerHTML"] = `
+    <style>
+        .wrapper { text-align: center; color: ${color}; padding: 20px; }
+        .title { font-size: large; font-weight: bolder; }
+        .text { font-size: medium; }
+    </style>
+    <div class="wrapper">
+        <p class="title">Musical J.A.R.V.I.B.</p>
+        <p class="text">Click the button below, then press Save to add the app to this meeting.</p>
+        <button class="add-app">Add App to Meeting</button>
+    </div>
+    `;
+    elem.appendChild(configTemplate.content.cloneNode(true));
+
+    const addButton = elem.querySelector(".add-app");
+    addButton.onclick = () => {
+        microsoftTeams.pages.config.setValidityState(true);
+    };
+
+    microsoftTeams.pages.config.registerOnSaveHandler(function (saveEvent) {
+        microsoftTeams.pages.config.setConfig({
+            entityId: "MusicalJARVIB",
+            contentUrl: `${window.location.origin}/?inTeams=1&view=content`,
+            suggestedTabName: "Musical JARVIB",
+            websiteUrl: `${window.location.origin}/?inTeams=1&view=stage`,
+        });
+        saveEvent.notifySuccess();
+    });
+}
+
 // SIDEBAR VIEW
 const sideBarTemplate = document.createElement("template");
 
@@ -171,37 +206,7 @@ function shareToStage() {
     }, window.location.origin + "?inTeams=1&view=stage");
 }
 
-// SETTINGS VIEW
-const settingsTemplate = document.createElement("template");
 
-function renderSettings(elem) {
-    settingsTemplate["innerHTML"] = `
-    <style>
-        .wrapper { text-align: center; color: ${color} }
-        .title { font-size: large; font-weight: bolder; }
-        .text { font-size: medium; }
-    </style>
-    <div class="wrapper">
-        <p class="title">Welcome to J.A.R.V.I.B.!</p>
-        <p class="text">Press the save button to continue.</p>
-    </div>
-    `;
-    elem.appendChild(settingsTemplate.content.cloneNode(true));
-
-    // Save the configurable tab
-    microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
-        microsoftTeams.pages.config.setConfig({
-            websiteUrl: window.location.origin,
-            contentUrl: window.location.origin + "?inTeams=1&view=content",
-            entityId: "J.A.R.V.I.B.",
-            suggestedDisplayName: "J.A.R.V.I.B.",
-        });
-        saveEvent.notifySuccess();
-    });
-
-    // Enable the Save button in config dialog
-    microsoftTeams.pages.config.setValidityState(true);
-}
 
 // Error view
 const errorTemplate = document.createElement("template");

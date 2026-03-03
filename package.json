@@ -1,23 +1,23 @@
 {
     "name": "musicaljarvib",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "msteams": {
         "teamsAppId": null
     },
-    "description": "Microsoft Teams Toolkit AI Chat Bot Sample with Teams AI Library",
+    "description": "Musical JARVIB - A Teams SDK agent for dynamic 3D worlds",
     "engines": {
-        "node": "18 || 20"
+        "node": ">=20"
     },
-    "author": "Microsoft",
+    "author": "David Rousset",
     "license": "MIT",
     "main": "./lib/src/index.js",
     "scripts": {
         "dev:teamsfx": "env-cmd --silent -f .localConfigs npm run dev",
         "dev:teamsfx:testtool": "env-cmd --silent -f .localConfigs.testTool npm run dev",
         "dev:teamsfx:launch-testtool": "env-cmd --silent -f env/.env.testtool teamsapptester start",
-        "dev": "nodemon --exec node --inspect=9239 --signal SIGINT -r ts-node/register ./src/index.ts",
-        "build": "tsc --build && shx cp -r ./src/prompts ./lib/src",
-        "start": "node ./lib/src/index.js",
+        "dev": "nodemon -w \"./src/**\" -e ts --exec \"node -r ts-node/register -r dotenv/config ./src/index.ts\"",
+        "build": "tsc --build",
+        "start": "node -r dotenv/config ./lib/src/index.js",
         "test": "echo \"Error: no test specified\" && exit 1",
         "watch": "nodemon --exec \"npm run start\""
     },
@@ -26,22 +26,25 @@
         "url": "https://github.com"
     },
     "dependencies": {
-        "@microsoft/teams-ai": "^1.5.3",
-        "botbuilder": "^4.23.1",
-        "express": "^5.0.1",
-        "socket.io": "^4.7.2",
         "@azure-rest/ai-inference": "latest",
         "@azure/core-auth": "latest",
-        "@azure/core-sse": "latest"
+        "@azure/core-sse": "latest",
+        "@microsoft/teams.ai": "^2.0.5",
+        "@microsoft/teams.api": "^2.0.5",
+        "@microsoft/teams.apps": "^2.0.5",
+        "@microsoft/teams.cards": "^2.0.5",
+        "@microsoft/teams.openai": "^2.0.5",
+        "dotenv": "^16.4.7",
+        "express": "^5.0.1",
+        "socket.io": "^4.7.2"
     },
     "devDependencies": {
-        "@types/express": "^5.0.0",
-        "@types/node": "^18.0.0",
-        "@types/lodash": "^4.14.196",
+        "@microsoft/teams.dev": "^2.0.5",
+        "@types/express": "^5.0.6",
+        "@types/node": "^20.0.0",
         "env-cmd": "^10.1.0",
-        "ts-node": "^10.4.0",
-        "typescript": "^5.5.4",
         "nodemon": "^3.1.7",
-        "shx": "^0.3.3"
+        "ts-node": "^10.4.0",
+        "typescript": "^5.5.4"
     }
 }

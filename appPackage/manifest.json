@@ -1,7 +1,7 @@
 {
-    "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
-    "manifestVersion": "1.19",
-    "version": "2.0.0",
+    "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.24/MicrosoftTeams.schema.json",
+    "manifestVersion": "1.24",
+    "version": "3.0.0",
     "id": "${{TEAMS_APP_ID}}",
     "developer": {
         "name": "David Rousset",
@@ -22,6 +22,14 @@
         "full": "Just A Rather Very Intelligent Bot that can create dynamic 3D worlds."
     },
     "accentColor": "#FFFFFF",
+        "copilotAgents": {
+        "customEngineAgents": [
+            {
+                "type": "bot",
+                "id": "${{BOT_ID}}"
+            }
+        ]
+    },
     "bots": [
         {
             "botId": "${{BOT_ID}}",
@@ -43,8 +51,8 @@
                             "description": "How can you help me?"
                         },
                         {
-                            "title": "How to develop TeamsToolkit app?",
-                            "description": "How can I develop apps with Teams Toolkit?"
+                            "title": "Create a 3D world for me",
+                            "description": "Create 12 cubes of different colors, using the rainbow palette, and place them in a circle around me. Add a bright light source in the center of the circle to illuminate the cubes."
                         }
                     ]
                 }
@@ -56,6 +64,7 @@
             "configurationUrl": "${{TAB_ENDPOINT}}/?view=config&inTeams=1&load=1",
             "canUpdateConfiguration": false,
             "scopes": [
+                "team",
                 "groupChat"
             ],
             "context": [
@@ -73,5 +82,27 @@
     "validDomains": [
         "${{BOT_DOMAIN}}",
         "${{TAB_DOMAIN}}"
-    ]
+    ],
+    "authorization": {
+    "permissions": {
+      "resourceSpecific": [
+        {
+          "name": "MeetingStage.Write.Chat",
+          "type": "Delegated"
+        },
+        {
+          "name": "ChannelMeetingStage.Write.Group",
+          "type": "Delegated"
+        },
+        {
+          "name": "LiveShareSession.ReadWrite.Chat",
+          "type": "Delegated"
+        },
+        {
+          "name": "LiveShareSession.ReadWrite.Group",
+          "type": "Delegated"
+        }
+      ]
+    }
+  }
 }

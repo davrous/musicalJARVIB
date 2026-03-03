@@ -1,12 +1,10 @@
-// Import required packages
+// Socket.IO server for 3D canvas communication
 import express from "express";
+import http from "http";
+import { Server } from "socket.io";
 
-// WebSocket server part
-//const express2 = require('express'); 
 const appSocket = express();
-const http = require('http');
 const serverSocket = http.createServer(appSocket);
-const { Server } = require("socket.io");
 const socketapp = new Server(serverSocket);
 
 appSocket.use(express.static('public'));
