@@ -34,9 +34,12 @@
         "@microsoft/teams.apps": "^2.0.5",
         "@microsoft/teams.cards": "^2.0.5",
         "@microsoft/teams.openai": "^2.0.5",
+        "babylonjs": "^9.1.0",
+        "babylonjs-loaders": "^9.1.0",
         "dotenv": "^16.4.7",
         "express": "^5.0.1",
-        "socket.io": "^4.7.2"
+        "socket.io": "^4.7.2",
+        "xhr2": "^0.2.1"
     },
     "devDependencies": {
         "@microsoft/teams.dev": "^2.0.5",

@@ -13,6 +13,9 @@ import ModelClient from "@azure-rest/ai-inference";
 import { AzureKeyCredential } from "@azure/core-auth";
 import { createSseStream } from "@azure/core-sse"; 
 
+import { validateAndRetry } from './codeRetryHelper';
+import { resetValidatorScene } from './validator';
+
 // #region Interfaces
 interface fullListItem {
   name: string;
@@ -80,6 +83,7 @@ function buildInstructions(state: ConversationState): string {
 rules:
 - assume there is already an existing Babylon.js scene and engine so you don't have to create them 
 - just generate the code to add into an existing program.
+- abolutely verify that you're using existing function of Babylon.js.
 - use the scene and engine objects directly.
 - pay attention when trying to access previously created Meshes by getting access to them via their name rather than assuming the associated variable is already created
 - when writing a new code, consider all the previous one you've generated to be sure the new code will be consistent with the previous one.
@@ -94,6 +98,112 @@ ${state.lastModelLoaded || "none"}
 
 Code executed so far:
 ${state.fullCode || "none"}`;
+}
+// #endregion
+
+// #region LLM code-fix helper for validation retries
+/**
+ * Ask the LLM to fix broken Babylon.js code given the error message.
+ * Uses the same Azure OpenAI deployment as the main chat, non-streaming.
+ */
+async function askLLMToFixCode(
+  error: string,
+  brokenCode: string,
+  systemInstructions: string
+): Promise<string> {
+  const response = await azureOpenAIClient.path("/chat/completions").post({
+    body: {
+      messages: [
+        {
+          role: "system",
+          content: systemInstructions + `\n\nIMPORTANT: You are fixing a Babylon.js code that failed server-side validation. 
+Return ONLY the corrected JavaScript code inside a single \`\`\`javascript code block. No explanations.`,
+        },
+        {
+          role: "user",
+          content: `The following Babylon.js code produced this error when executed:
+
+Error: ${error}
+
+Code:
+\`\`\`javascript
+${brokenCode}
+\`\`\`
+
+Fix the code so it runs without errors. Return only the corrected code in a single \`\`\`javascript block.`,
+        },
+      ],
+      max_tokens: 2000,
+      temperature: 0.3,
+      model: finalModelName,
+    },
+  });
+
+  const body = response.body as any;
+  if (response.status !== "200") {
+    console.error("[askLLMToFixCode] API error:", body.error);
+    return brokenCode; // Return original code if API fails
+  }
+
+  const content = body.choices?.[0]?.message?.content || "";
+  const codeBlocks = extractJavaScriptCode(content);
+  if (codeBlocks.length > 0) {
+    console.log("[askLLMToFixCode] Got corrected code from LLM");
+    return codeBlocks[0];
+  }
+
+  // If no code block found, return trimmed content as-is (LLM might have returned raw code)
+  console.log("[askLLMToFixCode] No code block in response, using raw content");
+  return content.trim() || brokenCode;
+}
+// #endregion
+
+// #region LLM jokes generator
+/**
+ * Ask the LLM to generate joke about his code gen errors
+ * Uses the same Azure OpenAI deployment as the main chat, non-streaming.
+ */
+async function askLLMToMockHimself(
+  error: string,
+  brokenCode: string,
+  systemInstructions: string
+): Promise<string> {
+  const response = await azureOpenAIClient.path("/chat/completions").post({
+    body: {
+      messages: [
+        {
+          role: "system",
+          content: systemInstructions + `\n\nIMPORTANT: You are generating a joke about a Babylon.js code that failed server-side validation. 
+Return ONLY the joke inside a single \`\`\`text code block. No explanations.`,
+        },
+        {
+          role: "user",
+          content: `The following Babylon.js code produced this error when executed:
+
+Error: ${error}
+
+Code:
+\`\`\`javascript
+${brokenCode}
+\`\`\`
+
+Make a joke about the error and the code. Return only the joke in a single \`\`\`text block.`,        },
+      ],
+      max_tokens: 2000,
+      temperature: 0.3,
+      model: finalModelName,
+    },
+  });
+
+  const body = response.body as any;
+  if (response.status !== "200") {
+    console.error("[askLLMToMockHimself] API error:", body.error);
+    return brokenCode; // Return original code if API fails
+  }
+
+  const content = body.choices?.[0]?.message?.content || "";
+
+  return content.trim();
 }
 // #endregion
 
@@ -154,6 +264,7 @@ app.on('message', async ({ activity, send, next }) => {
     const conversationId = activity.conversation.id;
     conversationStates.delete(conversationId);
     conversationMessages.delete(conversationId);
+    resetValidatorScene();
     socketapp.emit('execute code', "location.reload(true);");
     await send(responses.reset());
     return;
@@ -211,12 +322,31 @@ app.on('message', async ({ activity, send, log }) => {
       },
       async ({ code }: { code: string }) => {
         if (code) {
-          socketapp.emit('execute code', code);
-          state.fullCode += code + "\n";
+          // To simulate a validation failure for testing, you can uncomment the following line to append broken code:
+          //code += "BABYLON.SphereBuilder.CreateSpheres('test', {diameter: 1}, scene);" + '\n'; // Test line to trigger validation error if code is broken";
+          const result = await validateAndRetry(code, async (error, brokenCode) => {
+            return await askLLMToFixCode(error, brokenCode, buildInstructions(state));
+          });
+
+          if (result.valid) {
+            socketapp.emit('execute code', result.code);
+            state.fullCode += result.code + "\n";
+            log.info('codeToExecute', result.code);
+            await send(`<pre>${result.code}</pre>`);
+            if (result.attempts > 1) {
+              await askLLMToMockHimself(result.error || "unknown error", code, buildInstructions(state))
+              .then(async (joke) => {
+                await send(`😂 LLM joke: ${joke}`);
+              });
+            }
+            return 'Code executed successfully';
+          } else {
+            log.error('codeToExecute validation failed after retries', result.error);
+            await send(`❌ Code validation failed after ${result.attempts} attempt(s): ${result.error}\nCode was **not** sent to the client.`);
+            return 'Code validation failed: ' + result.error;
+          }
         }
-        log.info('codeToExecute', code);
-        await send(`<pre>${code}</pre>`);
-        return 'Code executed successfully';
+        return 'No code provided';
       }
     )
     // Function: List available 3D models
@@ -370,9 +500,24 @@ app.on('message', async ({ activity, send, log }) => {
     const codeBlocks = extractJavaScriptCode(result.content);
     if (codeBlocks.length > 0) {
       const combinedCode = codeBlocks.join("\n");
-      socketapp.emit('execute code', combinedCode);
-      state.fullCode += combinedCode + "\n";
-      log.info('Auto-executed code from response');
+      const validation = await validateAndRetry(combinedCode, async (error, brokenCode) => {
+        return await askLLMToFixCode(error, brokenCode, buildInstructions(state));
+      });
+
+      if (validation.valid) {
+        socketapp.emit('execute code', validation.code);
+        state.fullCode += validation.code + "\n";
+        log.info('Auto-executed code from response');
+        if (validation.attempts > 1) {
+          await askLLMToMockHimself(validation.error || "unknown error", combinedCode, buildInstructions(state))
+          .then(async (joke) => {
+            await send(`😂 LLM joke: ${joke}`);
+          });
+        }
+      } else {
+        log.error('Auto-detected code validation failed', validation.error);
+        await send(`❌ Auto-detected code validation failed: ${validation.error}\nCode was **not** sent to the client.`);
+      }
     }
 
     const response = new MessageActivity(result.content).addAiGenerated();

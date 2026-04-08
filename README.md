@@ -16,6 +16,7 @@ Musical JARVIB (Just A Rather Very Intelligent Bot) is your personal Copilot to 
     -   [View it in action](#view-it-in-action)
     -   [What changed in v2](#what-changed-in-v2)
     -   [Architecture overview](#architecture-overview)
+    -   [Server-side code validation](#server-side-code-validation)
     -   [Setting up the sample](#setting-up-the-sample)
     -   [Interacting with the bot](#interacting-with-the-bot)
     -   [Further reading](#further-reading)
@@ -102,6 +103,42 @@ The app registers handlers for Teams meeting lifecycle events:
 ### Socket.IO streaming
 
 For the MIDI-driven "pseudofinal" and "final" demos, JARVIB uses a direct Azure OpenAI client (`@azure-rest/ai-inference`) with **SSE streaming** to generate and stream Babylon.js code in real time to the 3D canvas via Socket.IO.
+
+## Server-side code validation
+
+LLM-generated Babylon.js code can contain hallucinated API calls or incorrect property accesses that would cause JavaScript errors on the client. To prevent this, JARVIB validates all LLM-generated code **server-side** before sending it to connected clients.
+
+### How it works
+
+The validation layer uses the Babylon.js [`NullEngine`](https://doc.babylonjs.com/setup/support/serverSide) — a headless version of the Babylon.js engine that runs in Node.js without WebGL or a browser. A server-side scene mirrors the client's scene setup (camera, light, skybox parameters) and **accumulates state** across validations, just like the client does.
+
+```
+LLM generates code → Validate in NullEngine sandbox → Pass? → Emit to clients via WebSocket
+                                                      → Fail? → Re-prompt LLM with error → Retry (up to 3x)
+                                                                                          → All fail? → Skip, notify user
+```
+
+### Validated code paths
+
+| Code path | Validated? | Why |
+|---|---|---|
+| `codeToExecute` (Teams chat function calling) | ✅ Yes | LLM-generated, hallucination-prone |
+| Auto-detected code blocks in AI responses | ✅ Yes | LLM-generated |
+| `handleMusicNote` (MIDI → 3D objects) | ❌ No | Hardcoded template code |
+| `loadThisModel` (model loading) | ❌ No | Deterministic template code |
+| `pseudofinal` / `final` (streaming demos) | ❌ No | One-shot streaming scenes |
+
+### Key design choices
+
+- **Persistent scene** — The validator scene is *not* reset between validations. Since LLM code is cumulative (new code references previously created meshes by name), the server-side scene must keep the same state as the client. It is only reset when the user sends the `/reset` command.
+- **Automatic retry** — On validation failure, the server asks the LLM to fix the code using the error message, up to 3 times. If all retries fail, the code is **not sent** to the client and the user is notified in the Teams chat.
+- **NullEngine limitations** — `camera.attachControl` is stubbed (requires a DOM element). Remote asset loading (GLB/GLTF) may fail gracefully server-side but the code structure is still validated.
+
+### Files
+
+- `src/validator.ts` — NullEngine sandbox with `validateBabylonCode()` and `resetValidatorScene()`
+- `src/codeRetryHelper.ts` — `validateAndRetry()` orchestration with configurable max retries
+- `src/index.ts` — `askLLMToFixCode()` helper that re-prompts Azure OpenAI to fix broken code
 
 ## Setting up the sample
 
@@ -196,12 +233,14 @@ Finally, call the AI bot via @JARVIB-local following your order:
 
 ```
 src/
-├── index.ts          # Main entry point — App setup, event handlers, ChatPrompt with functions
-├── config.ts         # Environment variable configuration
-├── responses.ts      # Randomized response templates
+├── index.ts            # Main entry point — App setup, event handlers, ChatPrompt with functions
+├── config.ts           # Environment variable configuration
+├── responses.ts        # Randomized response templates
+├── validator.ts        # Server-side Babylon.js NullEngine code validation sandbox
+├── codeRetryHelper.ts  # Validate-and-retry orchestration for LLM-generated code
 ├── app/
-│   └── socketapp.ts  # Express + Socket.IO server (port 3000)
-└── prompts/          # Legacy prompt files (kept for reference)
+│   └── socketapp.ts    # Express + Socket.IO server (port 3000)
+└── prompts/            # Legacy prompt files (kept for reference)
     ├── chat/
     │   ├── skprompt.txt
     │   ├── actions.json
